@@ -1,0 +1,66 @@
+
+
+import numpy as np
+import tensorflow as tf
+from tensorflow.keras.models import Sequential
+from tensorflow.keras.layers import LSTM, Dense, Activation
+
+# Load the dataset of handwritten text examples
+# Replace 'filename.txt' with the path to your dataset file
+with open('Churn_Modelling.csv', 'r')as file:
+    data = file.read()
+
+# Create a mapping from characters to integers and vice versa
+chars = sorted(list(set(data)))
+char_to_int = {c: i for i, c in enumerate(chars)}
+int_to_char = {i: c for i, c in enumerate(chars)}
+
+# Prepare the input and target data for the RNN
+seq_length = 100  # Length of the input sequence
+step = 1  # Step size for creating subsequences
+input_sequences = []
+target_sequences = []
+
+for i in range(0, len(data) - seq_length, step):
+    input_seq = data[i:i + seq_length]
+    target_seq = data[i + seq_length]
+    input_sequences.append([char_to_int[char] for char in input_seq])
+    target_sequences.append(char_to_int[target_seq])
+
+# Convert input and target sequences to numpy arrays
+X = np.array(input_sequences)
+y = np.array(target_sequences)
+
+# Normalize the input data
+X = X / float(len(chars))
+
+# Define the RNN model
+model = Sequential()
+model.add(LSTM(128, input_shape=(seq_length, len(chars))))
+model.add(Dense(len(chars)))
+model.add(Activation('softmax'))
+
+# Compile the model
+model.compile(loss='sparse_categorical_crossentropy', optimizer='adam')
+
+# Train the model
+batch_size = 128
+epochs = 50
+model.fit(X, y, batch_size=batch_size, epochs=epochs)
+
+# Generate new handwritten-like text
+start_idx = np.random.randint(0, len(data) - seq_length)
+seed = data[start_idx:start_idx + seq_length]
+generated_text = seed
+
+num_chars_to_generate = 500  # Number of characters to generate
+for _ in range(num_chars_to_generate):
+    x = np.array([[char_to_int[char] for char in seed]])
+    x = x / float(len(chars))
+    prediction = model.predict(x, verbose=0)
+    next_char_idx = np.argmax(prediction)
+    next_char = int_to_char[next_char_idx]
+    generated_text += next_char
+    seed = seed[1:] + next_char
+
+print(generated_text)
